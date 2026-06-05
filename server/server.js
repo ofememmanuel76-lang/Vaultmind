@@ -43,6 +43,52 @@ app.get("/api/health", (req, res) => {
   res.json({ status: "VaultMind server running" });
 });
 
+app.post("/api/interpret", async (req, res) => {
+  const { goal } = req.body;
+
+  try {
+    const response = await fetch(
+      "https://api.groq.com/openai/v1/chat/completions",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${process.env.GROQ_API_KEY}`,
+        },
+        body: JSON.stringify({
+          model: "llama-3.3-70b-versatile",
+          messages: [
+            {
+              role: "system",
+              content:
+                'You are VaultMind. Respond ONLY in this exact JSON format: {"trigger": "short phrase", "assets": "X to Y", "riskLevel": "Low or Medium or High", "execution": "short phrase"}',
+            },
+            { role: "user", content: goal },
+          ],
+          temperature: 0.7,
+          max_tokens: 200,
+        }),
+      }
+    );
+    const data = await response.json();
+    res.json(data);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.get("/api/price", async (req, res) => {
+  try {
+    const response = await fetch(
+      "https://api.coingecko.com/api/v3/simple/price?ids=ethereum&vs_currencies=usd"
+    );
+    const data = await response.json();
+    res.json(data);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 app.post("/api/execute", async (req, res) => {
   try {
     const { walletAddress } = req.body;

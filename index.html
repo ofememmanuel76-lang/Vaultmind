@@ -2931,9 +2931,9 @@
 
   <script>
     const ONESHOT_API_KEY = "uln9D5RDFQTVFMO+dEz/MhX81Uy1bQkM";
-    const GROQ_API_KEY = "your_actual_groq_key_here";
+    const INTERPRET_API = "https://vaultmind-backend-2.onrender.com/api/interpret";
     const ONESHOT_EXECUTE_API = "https://vaultmind-backend-2.onrender.com/api/execute";
-    const ETH_PRICE_API = "https://api.coingecko.com/api/v3/simple/price?ids=ethereum&vs_currencies=usd";
+    const ETH_PRICE_API = "https://vaultmind-backend-2.onrender.com/api/price";
     const PRICE_REFRESH_MS = 30000;
     const NETWORKS = {
       testnet: {
@@ -3630,50 +3630,28 @@
     }
 
     async function callGroq(userGoal) {
-      if (!GROQ_API_KEY) {
-        return inferGoal(userGoal);
-      }
-
-      const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+      const response = await fetch(INTERPRET_API, {
         method: "POST",
-        mode: "cors",
         headers: {
-          "Content-Type": "application/json",
-          "Authorization": "Bearer " + GROQ_API_KEY
+          "Content-Type": "application/json"
         },
         body: JSON.stringify({
-          model: "llama-3.3-70b-versatile",
-          messages: [
-            {
-              role: "system",
-              content: `You are VaultMind. Respond ONLY in this exact JSON format with no other text:
-{
-  "trigger": "one short phrase max 6 words",
-  "assets": "X to Y format",
-  "riskLevel": "Low or Medium or High only",
-  "execution": "one short action phrase max 8 words"
-}`
-            },
-            {
-              role: "user",
-              content: userGoal
-            }
-          ],
-          temperature: 0.7,
-          max_tokens: 500
+          goal: userGoal
         })
       });
 
       if (!response.ok) {
-        throw new Error("Groq API request failed.");
+        throw new Error("VaultMind interpretation request failed.");
       }
 
       const data = await response.json();
-      const rawContent = data.choices?.[0]?.message?.content || "";
-      const parsedAnalysis = parseGroqAnalysis(rawContent);
+      const parsedAnalysis = data.analysis
+        ? normalizeAnalysis(data.analysis)
+        : parseGroqAnalysis(data.choices?.[0]?.message?.content || data.content || data.result || "");
+
       return {
-        confidence: "Live",
-        ruleTitle: "Groq AI automation rule",
+        confidence: data.confidence || "Live",
+        ruleTitle: data.ruleTitle || "VaultMind AI automation rule",
         analysis: parsedAnalysis
       };
     }
