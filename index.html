@@ -1401,14 +1401,22 @@
     .nav-menu-toggle {
       width: 44px;
       height: 44px;
+      flex: 0 0 44px;
       display: none;
       place-items: center;
       border: 1px solid var(--border);
       border-radius: 8px;
       background: var(--card);
       color: #f8fafc;
+      cursor: pointer;
       font-size: 22px;
       line-height: 1;
+    }
+
+    .nav-menu-toggle:hover,
+    .nav-menu-toggle:focus-visible {
+      border-color: rgba(124, 58, 237, 0.54);
+      background: rgba(124, 58, 237, 0.16);
     }
 
     .nav-actions {
@@ -1429,7 +1437,7 @@
     }
 
     .mobile-nav-drawer.open {
-      display: block;
+      display: none;
     }
 
     .mobile-nav-links {
@@ -2430,6 +2438,10 @@
         display: grid;
       }
 
+      .mobile-nav-drawer.open {
+        display: block;
+      }
+
       .nav-actions {
         gap: 8px;
       }
@@ -2438,6 +2450,12 @@
         min-width: 0;
         padding-inline: 12px;
         font-size: 13px;
+      }
+
+      .nav-actions .nav-connect {
+        width: auto;
+        max-width: 136px;
+        white-space: nowrap;
       }
 
       .vm-logo strong {
@@ -3021,10 +3039,24 @@
       return `${address.slice(0, 6)}...${address.slice(-4)}`;
     }
 
+    function isMobileNav() {
+      return window.matchMedia("(max-width: 768px)").matches;
+    }
+
     function setLandingMenuOpen(isOpen) {
-      landingMobileNav.classList.toggle("open", isOpen);
-      landingMenuToggle.setAttribute("aria-expanded", String(isOpen));
-      landingMenuToggle.setAttribute("aria-label", isOpen ? "Close navigation" : "Open navigation");
+      const shouldOpen = Boolean(isOpen && isMobileNav());
+      landingMobileNav.classList.toggle("open", shouldOpen);
+      landingMenuToggle.setAttribute("aria-expanded", String(shouldOpen));
+      landingMenuToggle.setAttribute("aria-label", shouldOpen ? "Close navigation" : "Open navigation");
+    }
+
+    function scrollToLandingSection(hash) {
+      const target = hash ? document.querySelector(hash) : null;
+      if (!target) {
+        return;
+      }
+
+      target.scrollIntoView({ behavior: "smooth", block: "start" });
     }
 
     function setSidebarOpen(isOpen) {
@@ -3471,18 +3503,52 @@
       }, options.duration || 4000);
     }
 
+    function getEthereumProvider() {
+      return window.ethereum || null;
+    }
+
+    function getWalletErrorMessage(error) {
+      if (!error) {
+        return "Wallet connection failed. Please try again.";
+      }
+
+      if (error.code === 4001 || /reject|cancel/i.test(error.message || "")) {
+        return "Connection cancelled. Please approve MetaMask to connect your wallet.";
+      }
+
+      if (error.code === -32002) {
+        return "MetaMask already has a pending connection request. Open MetaMask to continue.";
+      }
+
+      if (error.code === -32603) {
+        return "MetaMask could not complete the connection. Please unlock MetaMask and try again.";
+      }
+
+      return error.message || "Wallet connection failed. Please try again.";
+    }
+
     async function connectMetaMask() {
-      if (!window.ethereum) {
-        landingMessage.textContent = "MetaMask not detected";
-        showToast("MetaMask was not detected. Install MetaMask to connect a wallet.");
+      const provider = getEthereumProvider();
+      const installMessage = "Please install MetaMask browser extension to connect your wallet. Visit metamask.io";
+
+      if (!provider) {
+        state.account = null;
+        state.currentChainId = null;
+        landingMessage.textContent = installMessage;
+        showToast(installMessage, { duration: 7000 });
+        render();
         return;
       }
 
       try {
         landingMessage.textContent = "";
         setAuthLoading(true);
-        const accounts = await window.ethereum.request({ method: "eth_requestAccounts" });
-        state.account = accounts[0] || null;
+        const accounts = await provider.request({ method: "eth_requestAccounts" });
+        if (!Array.isArray(accounts) || accounts.length === 0) {
+          throw new Error("No wallet account was returned by MetaMask. Please unlock MetaMask and try again.");
+        }
+
+        state.account = accounts[0];
         updateWalletUi();
         await detectCurrentNetwork();
         if (!isNetworkMatched()) {
@@ -3490,9 +3556,10 @@
         }
         showToast("Wallet connected to VaultMind.");
       } catch (error) {
-        const rejected = error.code === 4001 || /reject|cancel/i.test(error.message || "");
-        updateWalletUi(rejected ? "Connection cancelled" : (error.message || "Wallet connection failed"));
-        showToast(error.message || "Wallet connection was rejected.");
+        state.account = null;
+        const message = getWalletErrorMessage(error);
+        updateWalletUi(message);
+        showToast(message, { duration: 6000 });
       } finally {
         setAuthLoading(false);
         if (state.account) {
@@ -3877,7 +3944,31 @@
       setLandingMenuOpen(!landingMobileNav.classList.contains("open"));
     });
     landingMobileNav.querySelectorAll("a").forEach((link) => {
-      link.addEventListener("click", () => setLandingMenuOpen(false));
+      link.addEventListener("click", (event) => {
+        event.preventDefault();
+        setLandingMenuOpen(false);
+        scrollToLandingSection(link.getAttribute("href"));
+      });
+    });
+    document.addEventListener("click", (event) => {
+      if (!landingMobileNav.classList.contains("open")) {
+        return;
+      }
+
+      const clickedNav = landingMobileNav.contains(event.target) || landingMenuToggle.contains(event.target);
+      if (!clickedNav) {
+        setLandingMenuOpen(false);
+      }
+    });
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape") {
+        setLandingMenuOpen(false);
+      }
+    });
+    window.addEventListener("resize", () => {
+      if (!isMobileNav()) {
+        setLandingMenuOpen(false);
+      }
     });
     sidebarToggle.addEventListener("click", toggleSidebar);
     sidebarOverlay.addEventListener("click", () => setSidebarOpen(false));
