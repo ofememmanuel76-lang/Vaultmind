@@ -108,6 +108,23 @@ VaultMind fixes all of this.
 
 ---
 
+## Live Demo
+
+Frontend: https://quiet-moxie-98dcf2.netlify.app
+Backend API: https://vaultmind-backend-2.onrender.com
+
+## Architecture
+
+Frontend: Hosted on Netlify
+Backend: Node.js Express server hosted on Render
+Database: None - stateless architecture
+AI: Groq API (llama-3.3-70b-versatile)
+Price Feed: Kraken API
+Transaction Execution: 1Shot API
+Wallet: MetaMask
+
+---
+
 ## Demo
 
 ### Test Goals to Try:
