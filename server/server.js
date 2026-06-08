@@ -80,10 +80,10 @@ app.post("/api/interpret", async (req, res) => {
 app.get("/api/price", async (req, res) => {
   try {
     const response = await fetch(
-      "https://api.coingecko.com/api/v3/simple/price?ids=ethereum&vs_currencies=usd"
+      "https://api.binance.com/api/v3/ticker/price?symbol=ETHUSDT"
     );
     const data = await response.json();
-    res.json(data);
+    res.json({ ethereum: { usd: parseFloat(data.price) } });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
