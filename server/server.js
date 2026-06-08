@@ -80,10 +80,10 @@ app.post("/api/interpret", async (req, res) => {
 app.get("/api/price", async (req, res) => {
   try {
     const response = await fetch(
-      "https://api.binance.com/api/v3/ticker/price?symbol=ETHUSDT"
+      "https://api.kraken.com/0/public/Ticker?pair=ETHUSD"
     );
     const data = await response.json();
-    const price = parseFloat(data.price);
+    const price = parseFloat(data.result.XETHZUSD.c[0]);
     res.json({ ethereum: { usd: price } });
   } catch (error) {
     res.status(500).json({ error: error.message });
