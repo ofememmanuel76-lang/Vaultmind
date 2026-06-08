@@ -32,9 +32,23 @@ async function getOneShotToken() {
   return data.access_token;
 }
 
+const allowedOrigins = [
+  'http://127.0.0.1:5501',
+  'http://localhost:5501',
+  'https://quiet-moxie-98dcf2.netlify.app'
+];
+
 app.use(
   cors({
-    origin: "http://127.0.0.1:5501",
+    origin: function(origin, callback) {
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error('Not allowed by CORS'));
+      }
+    },
+    methods: ['GET', 'POST'],
+    credentials: true
   })
 );
 app.use(express.json());
