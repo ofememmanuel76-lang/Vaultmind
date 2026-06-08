@@ -83,7 +83,8 @@ app.get("/api/price", async (req, res) => {
       "https://api.binance.com/api/v3/ticker/price?symbol=ETHUSDT"
     );
     const data = await response.json();
-    res.json({ ethereum: { usd: parseFloat(data.price) } });
+    const price = parseFloat(data.price);
+    res.json({ ethereum: { usd: price } });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
